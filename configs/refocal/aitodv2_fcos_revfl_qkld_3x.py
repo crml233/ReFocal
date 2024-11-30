@@ -1,6 +1,14 @@
+'''
+
+0.2+lifpn 3x：  warmrp 10000  hard 10000:
+ch(val) [36][14018] bbox_mAP: 0.2290, bbox_mAP_50: 0.5260, bbox_mAP_75: 0.1660, bbox_mAP_vt: 0.0710, bbox_mAP_t: 0.2200, bbox_mAP_s: 0.2850, bbox_mAP_m: 0.3860, bbox_oLRP: -1.0000, bbox_oLRP_Localisation: -1.0000, bbox_oLRP_false_positive: -1.0000, bbox_oLRP_false_negative: -1.0000, bbox_mAP_copypaste: 0.229 -1.000 0.526 0.166 0.071 0.220
+
+
+'''
+
 _base_ = [
-    '../_base_/datasets/aitod_detection.py',
-    '../_base_/schedules/schedule_1x.py', '../_base_/default_runtime.py'
+    '../_base_/datasets/aitodv2_detection.py',
+    '../_base_/schedules/schedule_3x.py', '../_base_/default_runtime.py'
 ]
 # model settings
 model = dict(
@@ -18,35 +26,35 @@ model = dict(
             type='Pretrained',
             checkpoint='open-mmlab://detectron/resnet50_caffe')),
     neck=dict(
-        type='FPN',
+        type='Li_LLEFPN',
         in_channels=[256, 512, 1024, 2048],
         out_channels=256,
-        start_level=0, # P2
+        start_level=1, #1, for test fpn feat 
         add_extra_convs='on_output',  # use P5
         num_outs=5,
         relu_before_extra_convs=True),
     bbox_head=dict(
-        type='FCOSHead',
+        type='ReFL_FCOSHead',
         norm_cfg=None,
+        # output_pred = '/home/czj/mmdet-rfla/vis_tools/vis_feature/det_result_json/aitodv2_revari_det.json',
+        if_qkld = True,
+        qkld = 0.2,
+        if_3x = True,
         num_classes=8,
         in_channels=256,
         stacked_convs=4,
         feat_channels=256,
-        strides=[4, 8, 16, 32, 64],
+        strides=[8, 16, 32, 64, 128],
         norm_on_bbox=True,
-        centerness_on_reg=True,
-        dcn_on_last_conv=False,
         center_sampling=True,
-        conv_bias=True,
+        refl = True,
         loss_cls=dict(
-            type='FocalLoss',
+            type='ReFocalLoss',
             use_sigmoid=True,
             gamma=2.0,
             alpha=0.25,
             loss_weight=1.0),
-        loss_bbox=dict(type='GIoULoss', loss_weight=1.0),
-        loss_centerness=dict(
-            type='CrossEntropyLoss', use_sigmoid=True, loss_weight=1.0)),
+        loss_bbox=dict(type='DIoULoss', loss_weight=1.0)),
     # training and testing settings
     train_cfg=dict(
         assigner=dict(
@@ -92,7 +100,7 @@ test_pipeline = [
         ])
 ]
 data = dict(
-    samples_per_gpu=2,
+    samples_per_gpu=4,
     workers_per_gpu=2,
     train=dict(pipeline=train_pipeline),
     val=dict(pipeline=test_pipeline),
@@ -108,5 +116,7 @@ lr_config = dict(
     warmup='constant',
     warmup_iters=10000,
     warmup_ratio=1.0 / 3,
-    step=[8, 11])
-runner = dict(type='EpochBasedRunner', max_epochs=12)
+    step=[24, 33])
+runner = dict(type='EpochBasedRunner', max_epochs=36)
+
+checkpoint_config = dict(interval=36)

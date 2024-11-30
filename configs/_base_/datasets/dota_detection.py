@@ -1,5 +1,5 @@
 dataset_type = 'DOTA2Dataset'
-data_root = 'data/DOTA-V2.0/hbb/'
+data_root = '/home/czj/data/DOTA-V2.0/'#'data/DOTA-V2.0/'
 img_norm_cfg = dict(
     mean=[123.675, 116.28, 103.53], std=[58.395, 57.12, 57.375], to_rgb=True)
 train_pipeline = [
@@ -28,7 +28,7 @@ test_pipeline = [
         ])
 ]
 data = dict(
-    samples_per_gpu=2,
+    samples_per_gpu=4,
     workers_per_gpu=2,
     train=dict(
         type=dataset_type,

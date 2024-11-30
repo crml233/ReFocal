@@ -32,15 +32,15 @@ class simulate_assign:
                 iou_calculator=dict(type='BboxDistanceMetric'),
                 rfassigner=dict(
                     type='HieAssigner',
-                    pos_iou_thr=0.7,
-                    neg_iou_thr=0.3,
-                    min_pos_iou=0.3,
-                    match_low_quality=True,
+                    # pos_iou_thr=0.7,
+                    # neg_iou_thr=0.3,
+                    # min_pos_iou=0.3,
+                    # match_low_quality=True,
                     ignore_iof_thr=-1,
                     gpu_assign_thr=512,
                     iou_calculator=dict(type='BboxDistanceMetric'),
-                    topk=[8,0],
-                    ratio=1.1)):
+                    topk=[3,1],
+                    ratio=0.9)):
         self.anchor_generator = build_anchor_generator(anchor_generator)
         self.num_anchors = self.anchor_generator.num_base_anchors[0]
         self.assigner = build_assigner(assigner) # for anchor based 
@@ -89,7 +89,7 @@ class simulate_assign:
             gt_inds = assign_result.gt_inds
             counts = F.one_hot(gt_inds, num_classes = gt_bboxes.size(0)+1)
             pos_num = counts.sum(0) # number of pos samples for each gt
-            #self.heatmap(pos_num, gt_bboxes, flat_anchors)
+            self.heatmap(pos_num, gt_bboxes, flat_anchors)
             ave_num = self.stat(pos_num, gt_bboxes, anchor, scale=scale_range, ratio=ra,  mode='task2', plot=plot)
             print(ave_num)
         
@@ -103,7 +103,7 @@ class simulate_assign:
             gt_inds = assign_result.gt_inds
             counts = F.one_hot(gt_inds, num_classes = gt_bboxes.size(0)+1)
             pos_num = counts.sum(0) # number of pos samples for each gt
-            #self.heatmap(pos_num, gt_bboxes, flat_anchors)
+            self.heatmap(pos_num, gt_bboxes, flat_anchors)
             ave_num = self.stat(pos_num, gt_bboxes, anchor, scale=sc, ratio=ra,  mode='task3', plot=plot)
             print(ave_num)
         
@@ -139,7 +139,7 @@ class simulate_assign:
             gt_inds = gt_inds.long()
             counts = F.one_hot(gt_inds, num_classes = gt_bboxes.size(0)+1)
             pos_num = counts.sum(0) # number of pos samples for each gt
-            #self.heatmap(pos_num, gt_bboxes, flat_anchors)
+            # self.heatmap(pos_num, gt_bboxes, flat_anchors)
             ave_num = self.stat(pos_num, gt_bboxes, anchor, scale=scale_range, ratio=ra,  mode='task2', plot=plot)
             print(ave_num)
 
@@ -155,7 +155,7 @@ class simulate_assign:
             gt_inds = assign_result.gt_inds
             counts = F.one_hot(gt_inds, num_classes = gt_bboxes.size(0)+1)
             pos_num_t2 = counts.sum(0) # number of pos samples for each gt
-            #self.heatmap(pos_num, gt_bboxes, flat_anchors)
+            # self.heatmap(pos_num, gt_bboxes, flat_anchors)
 
             ####task4 FCOS scale imbalance
             true_center_distance = self.iou_calculator(gt_bboxes, flat_anchors, mode='center_distance')
@@ -195,10 +195,10 @@ class simulate_assign:
             gt_inds = assign_result.gt_inds
             counts = F.one_hot(gt_inds, num_classes = gt_bboxes.size(0)+1)
             pos_num_t2 = counts.sum(0) # number of pos samples for each gt
-            #self.heatmap(pos_num, gt_bboxes, flat_anchors)
+            # self.heatmap(pos_num_t2, gt_bboxes, flat_anchors)
 
             ####task4 FCOS scale imbalance
-            true_center_distance = self.iou_calculator(gt_bboxes, flat_anchors, mode='center_distance')
+            true_center_distance = self.iou_calculator(gt_bboxes, flat_anchors, mode='center_distance2')
             center_distance = 1/(1+true_center_distance)
 
             gt_max_dis, gt_argmax_dis = center_distance.topk(k, dim=1, largest=True, sorted=True)
@@ -346,7 +346,7 @@ class simulate_assign:
             x2 = int(box[2])
             y2 = int(box[3])
             a.rectangle(((x1, y1),(x2, y2)), fill=None, outline='red', width=1)
-        img.save('/home/xc/mmdet-swd/mmdetection/mmdet/models/dense_heads/vis/vis1.png')
+        img.save('/home/czj/mmdet-rfla/mmdet/models/dense_heads/vis/vis1.png')
          
         return None
     
@@ -382,7 +382,7 @@ class simulate_assign:
                 color = (231,111,81,0)
             a.ellipse((center_x-r2, center_y-r2, center_x+r2, center_y+r2), fill=color)
         
-        img.save('/home/xc/mmdet-swd/mmdetection/mmdet/models/dense_heads/vis/heatmap.png')    
+        img.save('/home/czj/mmdet-rfla/mmdet/models/dense_heads/vis/heatmap.png')    
 
         return None
 
@@ -413,7 +413,7 @@ class simulate_assign:
                 plt.ylabel('Number of positive samples', fontsize = 18)
                 plt.tick_params(labelsize=16)
                 plt.legend()
-                plt.savefig('/home/xc/mmdet-swd/mmdetection/mmdet/models/dense_heads/vis/task2.png')
+                plt.savefig('/home/czj/mmdet-rfla/mmdet/models/dense_heads/vis/task2.png')
 
 
         if mode == 'task24':
@@ -452,7 +452,7 @@ class simulate_assign:
                 plt.ylabel('Number of positive samples', fontsize = 20)
                 plt.tick_params(labelsize=16)
                 plt.legend(loc='upper left', fontsize = 16)
-                plt.savefig('/home/xc/mmdet-swd/mmdetection/mmdet/models/dense_heads/vis/task24.png')
+                plt.savefig('/home/czj/mmdet-rfla/mmdet/models/dense_heads/vis/task24.png')
 
         if mode == 'task246':
             count1 = torch.zeros((17,1)) # for counting, 16 means 16 intervals
@@ -501,7 +501,7 @@ class simulate_assign:
                 plt.ylabel('Number of positive samples', fontsize = 20)
                 plt.tick_params(labelsize=16)
                 plt.legend(loc='upper left', fontsize = 16)
-                plt.savefig('/home/xc/mmdet-swd/mmdetection/mmdet/models/dense_heads/vis/task246.png')
+                plt.savefig('/home/czj/mmdet-rfla/mmdet/models/dense_heads/vis/task246.png')
             
 
 
@@ -530,7 +530,7 @@ class simulate_assign:
                 plt.xlabel('gt aspect ratio',fontsize = 18)
                 plt.ylabel('Number of positive samples', fontsize = 18)
                 plt.tick_params(labelsize=16)
-                plt.savefig('/home/xc/mmdet-swd/mmdetection/mmdet/models/dense_heads/vis/task3.png')
+                plt.savefig('/home/czj/mmdet-rfla/mmdet/models/dense_heads/vis/task3.png')
 
         if mode =='task35':
             count1 = torch.zeros((17,1)) # for counting
@@ -568,7 +568,7 @@ class simulate_assign:
                 plt.ylabel('Number of positive samples', fontsize = 20)
                 plt.tick_params(labelsize=16)
                 plt.legend(loc='upper left', fontsize = 16)
-                plt.savefig('/home/xc/mmdet-swd/mmdetection/mmdet/models/dense_heads/vis/task35.png')
+                plt.savefig('/home/czj/mmdet-rfla/mmdet/models/dense_heads/vis/task35.png')
 
 
         return None

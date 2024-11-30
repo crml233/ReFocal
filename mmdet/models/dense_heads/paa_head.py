@@ -78,6 +78,7 @@ class PAAHead(ATSSHead):
                  **kwargs):
         # topk used in paa reassign process
         self.topk = topk
+        self.count = -1
         self.with_score_voting = score_voting
         self.covariance_type = covariance_type
         super(PAAHead, self).__init__(*args, **kwargs)
@@ -169,7 +170,7 @@ class PAAHead(ATSSHead):
         pos_inds_flatten = ((labels >= 0)
                             &
                             (labels < self.num_classes)).nonzero().reshape(-1)
-
+        self.count += 1
         losses_cls = self.loss_cls(
             cls_scores,
             labels,
@@ -182,6 +183,9 @@ class PAAHead(ATSSHead):
             pos_bbox_target = bboxes_target[pos_inds_flatten]
             iou_target = bbox_overlaps(
                 pos_bbox_pred.detach(), pos_bbox_target, is_aligned=True)
+            # if self.count < 3000:
+            #     iou_target = torch.ones_like(iou_target)
+           
             losses_iou = self.loss_centerness(
                 iou_preds[pos_inds_flatten],
                 iou_target.unsqueeze(-1),
@@ -341,7 +345,8 @@ class PAAHead(ATSSHead):
                 weights_init=weights_init,
                 means_init=means_init,
                 precisions_init=precisions_init,
-                covariance_type=self.covariance_type)
+                covariance_type=self.covariance_type,
+                reg_covar=1e-5)
             gmm.fit(pos_loss_gmm)
             gmm_assignment = gmm.predict(pos_loss_gmm)
             scores = gmm.score_samples(pos_loss_gmm)

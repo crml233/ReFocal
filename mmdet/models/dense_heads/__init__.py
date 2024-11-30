@@ -33,18 +33,25 @@ from .yolact_head import YOLACTHead, YOLACTProtonet, YOLACTSegmHead
 from .yolo_head import YOLOV3Head
 from .yolof_head import YOLOFHead
 from .rfla_fcos_head import RFLA_FCOSHead
+from .rfla_fcos_head_refocal import RFLA_FCOSHead_Refocal
 from .rfla_autoassign_head import RFLA_AutoAssignHead
+
+from .refl_fcos_head import ReFL_FCOSHead
+
+from .vari_fcos_head import Vari_FCOSHead
+
+# from .rpn_head import RPNHead
 
 
 __all__ = [
-    'AnchorFreeHead', 'AnchorHead', 'GuidedAnchorHead', 'FeatureAdaption',
+    'AnchorFreeHead', 'AnchorHead', 'GuidedAnchorHead', 'FeatureAdaption', 
     'RPNHead', 'GARPNHead', 'RetinaHead', 'RetinaSepBNHead', 'GARetinaHead',
-    'SSDHead', 'FCOSHead', 'RepPointsHead', 'FoveaHead',
+    'SSDHead', 'FCOSHead', 'RepPointsHead', 'FoveaHead', #'ReRPNHead',
     'FreeAnchorRetinaHead', 'ATSSHead', 'FSAFHead', 'NASFCOSHead',
-    'PISARetinaHead', 'PISASSDHead', 'GFLHead', 'CornerHead', 'YOLACTHead',
-    'YOLACTSegmHead', 'YOLACTProtonet', 'YOLOV3Head', 'PAAHead',
-    'SABLRetinaHead', 'CentripetalHead', 'VFNetHead', 'StageCascadeRPNHead',
+    'PISARetinaHead', 'PISASSDHead', 'GFLHead', 'CornerHead', 'YOLACTHead', 
+    'YOLACTSegmHead', 'YOLACTProtonet', 'YOLOV3Head', 'PAAHead', 'RFLA_FCOSHead_Refocal',
+    'SABLRetinaHead', 'CentripetalHead', 'VFNetHead', 'StageCascadeRPNHead', 
     'CascadeRPNHead', 'EmbeddingRPNHead', 'LDHead', 'CascadeRPNHead',
     'AutoAssignHead', 'DETRHead', 'YOLOFHead', 'DeformableDETRHead',
-    'CenterNetHead', 'RFLA_FCOSHead',  'RFLA_AutoAssignHead'
+    'CenterNetHead', 'RFLA_FCOSHead',  'RFLA_AutoAssignHead','ReFL_FCOSHead','Vari_FCOSHead'
 ]

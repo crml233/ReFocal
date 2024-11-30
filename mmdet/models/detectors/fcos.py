@@ -16,3 +16,5 @@ class FCOS(SingleStageDetector):
                  init_cfg=None):
         super(FCOS, self).__init__(backbone, neck, bbox_head, train_cfg,
                                    test_cfg, pretrained, init_cfg)
+    def set_epoch(self, epoch): 
+        self.bbox_head.epoch = epoch 

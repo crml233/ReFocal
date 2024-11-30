@@ -227,7 +227,7 @@ class AITODDataset(CocoDataset):
                     table = AsciiTable(table_data)
                     print_log('\n' + table.table, logger=logger)
 
-                if metric_items is None:
+                if metric_items is None: 
                     metric_items = [
                         'mAP', 'mAP_50', 'mAP_75', 'mAP_vt', 'mAP_t', 'mAP_s', 'mAP_m', 'oLRP', 'oLRP_Localisation', 'oLRP_false_positive', 'oLRP_false_negative'
                     ]
@@ -244,4 +244,4 @@ class AITODDataset(CocoDataset):
                     f'{ap[4]:.3f} {ap[5]:.3f}')
         if tmp_dir is not None:
             tmp_dir.cleanup()
-        return eval_results
+        return eval_results 

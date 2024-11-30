@@ -12,6 +12,10 @@ from mmdet.datasets import (build_dataloader, build_dataset,
                             replace_ImageToTensor)
 from mmdet.models import build_detector
 
+os.environ['MASTER_ADDR'] = 'localhost'
+os.environ['MASTER_PORT'] = '29500'
+os.environ['RANK'] = '0'
+os.environ['WORLD_SIZE'] = '1'
 
 def parse_args():
     parser = argparse.ArgumentParser(description='MMDet benchmark a model')
@@ -39,10 +43,11 @@ def parse_args():
     parser.add_argument(
         '--launcher',
         choices=['none', 'pytorch', 'slurm', 'mpi'],
-        default='none',
+        default='pytorch',
         help='job launcher')
     parser.add_argument('--local_rank', type=int, default=0)
     args = parser.parse_args()
+   
     if 'LOCAL_RANK' not in os.environ:
         os.environ['LOCAL_RANK'] = str(args.local_rank)
     return args
@@ -132,7 +137,7 @@ def main():
     if args.launcher == 'none':
         raise NotImplementedError('Only supports distributed mode')
     else:
-        init_dist(args.launcher, **cfg.dist_params)
+        init_dist(args.launcher, **cfg.dist_params) #'gloo'
 
     measure_inferense_speed(cfg, args.checkpoint, args.max_iter,
                             args.log_interval, args.fuse_conv_bn)

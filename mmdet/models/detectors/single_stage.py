@@ -98,13 +98,38 @@ class SingleStageDetector(BaseDetector):
                 corresponds to each class.
         """
         feat = self.extract_feat(img)
-        results_list = self.bbox_head.simple_test(
-            feat, img_metas, rescale=rescale)
-        bbox_results = [
-            bbox2result(det_bboxes, det_labels, self.bbox_head.num_classes)
-            for det_bboxes, det_labels in results_list
-        ]
-        return bbox_results
+        ##############
+        # for i in range(len(feat)):
+        #     print(feat[i].shape)
+            # '''torch.Size([1, 256, 100, 100])
+            # torch.Size([1, 256, 50, 50])
+            # torch.Size([1, 256, 25, 25])
+            # torch.Size([1, 256, 13, 13])
+            # torch.Size([1, 256, 7, 7])'''
+        show_fpn = False
+        show_clsfeat = False
+        if show_fpn:
+            return feat
+        else:
+        ##############
+            
+            if show_clsfeat:
+                headouts_clsfeats = self.bbox_head.simple_test(
+                    feat, img_metas, rescale=rescale , show_clsfeat = show_clsfeat)
+               
+                return headouts_clsfeats
+            else:
+                results_list = self.bbox_head.simple_test(
+                    feat, img_metas, rescale=rescale)
+                bbox_results = [
+                    bbox2result(det_bboxes, det_labels, self.bbox_head.num_classes)
+                    for det_bboxes, det_labels in results_list
+                ]
+                
+            
+        
+        
+            return bbox_results
 
     def aug_test(self, imgs, img_metas, rescale=False):
         """Test function with test time augmentation.
@@ -129,6 +154,7 @@ class SingleStageDetector(BaseDetector):
             ' does not support test-time augmentation'
 
         feats = self.extract_feats(imgs)
+        
         results_list = self.bbox_head.aug_test(
             feats, img_metas, rescale=rescale)
         bbox_results = [

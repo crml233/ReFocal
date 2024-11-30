@@ -14,6 +14,7 @@ from .wider_face import WIDERFaceDataset
 from .xml_style import XMLDataset
 from .aitod import AITODDataset
 from .dota import DOTA2Dataset
+from .tinyperson import TinyPersonDataset
 from .coco_tinyeval import CocoDatasettinyeval
 from .visdrone import VisDroneDataset
 
@@ -21,7 +22,7 @@ __all__ = [
     'CustomDataset', 'XMLDataset', 'CocoDataset', 'DeepFashionDataset',
     'VOCDataset', 'CityscapesDataset', 'LVISDataset', 'LVISV05Dataset',
     'LVISV1Dataset', 'GroupSampler', 'DistributedGroupSampler',
-    'DistributedSampler', 'build_dataloader', 'ConcatDataset', 'RepeatDataset',
+    'DistributedSampler', 'build_dataloader', 'ConcatDataset', 'RepeatDataset', 'TinyPersonDataset',
     'ClassBalancedDataset', 'WIDERFaceDataset', 'DATASETS', 'PIPELINES',
     'build_dataset', 'replace_ImageToTensor', 'get_loading_pipeline',
     'NumClassCheckHook','AITODDataset','DOTA2Dataset','CocoDatasettinyeval','VisDroneDataset'

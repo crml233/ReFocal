@@ -1,3 +1,26 @@
+'''
+
+Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=1500 ] = 0.145
+Average Precision  (AP) @[ IoU=0.25      | area=   all | maxDets=1500 ] = -1.000
+Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=1500 ] = 0.346
+Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=1500 ] = 0.097
+Average Precision  (AP) @[ IoU=0.50:0.95 | area=verytiny | maxDets=1500 ] = 0.023
+Average Precision  (AP) @[ IoU=0.50:0.95 | area=  tiny | maxDets=1500 ] = 0.124
+Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=1500 ] = 0.210
+Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=1500 ] = 0.327
+Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.268
+Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=300 ] = 0.285
+Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=1500 ] = 0.289
+Average Recall     (AR) @[ IoU=0.50:0.95 | area=verytiny | maxDets=1500 ] = 0.043
+Average Recall     (AR) @[ IoU=0.50:0.95 | area=  tiny | maxDets=1500 ] = 0.279
+Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=1500 ] = 0.383
+Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=1500 ] = 0.469
+Optimal LRP             @[ IoU=0.50      | area=   all | maxDets=1500 ] = -1.000
+Optimal LRP Loc         @[ IoU=0.50      | area=   all | maxDets=1500 ] = -1.000
+Optimal LRP FP          @[ IoU=0.50      | area=   all | maxDets=1500 ] = -1.000
+Optimal LRP FN          @[ IoU=0.50      | area=   all | maxDets=1500 ] = -1.000
+'''
+
 _base_ = [
     '../_base_/datasets/aitodv2_detection.py',
     '../_base_/schedules/schedule_1x.py', '../_base_/default_runtime.py'
@@ -21,7 +44,7 @@ model = dict(
         type='FPN',
         in_channels=[256, 512, 1024, 2048],
         out_channels=256,
-        start_level=1,
+        start_level=1, #1, for test fpn feat , I change it to 0
         add_extra_convs='on_output',  # use P5
         num_outs=5,
         relu_before_extra_convs=True),
@@ -29,6 +52,8 @@ model = dict(
         type='FCOSHead',
         norm_cfg=None,
         num_classes=8,
+        # output_pred = '/home/czj/mmdet-rfla/vis_tools/vis_feature/det_result_json/aitodv2_fcos_det.json',
+        score_nomul = True,
         in_channels=256,
         stacked_convs=4,
         feat_channels=256,
@@ -92,7 +117,7 @@ test_pipeline = [
         ])
 ]
 data = dict(
-    samples_per_gpu=2,
+    samples_per_gpu=4,
     workers_per_gpu=2,
     train=dict(pipeline=train_pipeline),
     val=dict(pipeline=test_pipeline),
@@ -105,8 +130,9 @@ optimizer_config = dict(
 # learning policy
 lr_config = dict(
     policy='step',
-    warmup='constant',
-    warmup_iters=10000,
-    warmup_ratio=1.0 / 3,
+    warmup='linear',
+    warmup_iters=3000,
+    warmup_ratio=0.001,
     step=[8, 11])
 runner = dict(type='EpochBasedRunner', max_epochs=12)
+

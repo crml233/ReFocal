@@ -1,8 +1,17 @@
+
+'''
+Input shape: (3, 1280, 800)
+Flops: 202.86 GFLOPs
+Params: 34.21 M
+
+'''
+# p name: aitodv2_panet.py
+# 2024-04-25 21:28:31,114 - mmdet - INFO - Epoch(val) [12][14018] bbox_mAP: 0.1620, bbox_mAP_50: 0.3950, bbox_mAP_75: 0.1040, bbox_mAP_vt: 0.0300, bbox_mAP_t: 0.1390, bbox_mAP_s: 0.2310, bbox_mAP_m: 0.3520, bbox_oLRP: -1.0000, bbox_oLRP_Localisation: -1.0000, bbox_oLRP_false_positive: -1.0000, bbox_oLRP_false_negative: -1.0000, bbox_mAP_copypaste: 0.162 -1.000 0.395 0.104 0.030 0.139
+
 _base_ = [
     '../_base_/datasets/aitodv2_detection.py',
     '../_base_/schedules/schedule_1x.py', '../_base_/default_runtime.py'
 ]
-# model settings
 model = dict(
     type='FCOS',
     backbone=dict(
@@ -18,17 +27,19 @@ model = dict(
             type='Pretrained',
             checkpoint='open-mmlab://detectron/resnet50_caffe')),
     neck=dict(
-        type='FPN',
+        type='PAFPN',
         in_channels=[256, 512, 1024, 2048],
         out_channels=256,
-        start_level=1,
+        start_level=1, #1, for test fpn feat 
         add_extra_convs='on_output',  # use P5
         num_outs=5,
         relu_before_extra_convs=True),
     bbox_head=dict(
-        type='RFLA_FCOSHead',
+        type='FCOSHead',
         norm_cfg=None,
         num_classes=8,
+        # output_pred = '/home/czj/mmdet-rfla/vis_tools/vis_feature/det_result_json/aitodv2_fcos_det.json',
+        # score_nomul = True,
         in_channels=256,
         stacked_convs=4,
         feat_channels=256,
@@ -36,9 +47,8 @@ model = dict(
         norm_on_bbox=True,
         centerness_on_reg=True,
         dcn_on_last_conv=False,
+        center_sampling=True,
         conv_bias=True,
-        fpn_layer = 'p3', # bottom FPN layer P3
-        fraction = 1/2,
         loss_cls=dict(
             type='FocalLoss',
             use_sigmoid=True,
@@ -51,13 +61,11 @@ model = dict(
     # training and testing settings
     train_cfg=dict(
         assigner=dict(
-            type='HieAssigner',
-             ignore_iof_thr=-1,
-             gpu_assign_thr=256,
-             iou_calculator=dict(type='BboxDistanceMetric'),
-             assign_metric='kl',
-             topk=[3,1],
-             ratio=0.9),
+            type='MaxIoUAssigner',
+            pos_iou_thr=0.5,
+            neg_iou_thr=0.4,
+            min_pos_iou=0,
+            ignore_iof_thr=-1),
         allowed_border=-1,
         pos_weight=-1,
         debug=False),
@@ -95,7 +103,7 @@ test_pipeline = [
         ])
 ]
 data = dict(
-    samples_per_gpu=2,
+    samples_per_gpu=4,
     workers_per_gpu=2,
     train=dict(pipeline=train_pipeline),
     val=dict(pipeline=test_pipeline),
@@ -109,7 +117,7 @@ optimizer_config = dict(
 lr_config = dict(
     policy='step',
     warmup='constant',
-    warmup_iters=10000,
+    warmup_iters=5000,
     warmup_ratio=1.0 / 3,
     step=[8, 11])
 runner = dict(type='EpochBasedRunner', max_epochs=12)

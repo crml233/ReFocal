@@ -90,6 +90,7 @@ class GFLHead(AnchorHead):
                  norm_cfg=dict(type='GN', num_groups=32, requires_grad=True),
                  loss_dfl=dict(type='DistributionFocalLoss', loss_weight=0.25),
                  reg_max=16,
+                 qfl_only = False, #
                  init_cfg=dict(
                      type='Normal',
                      layer='Conv2d',
@@ -101,6 +102,7 @@ class GFLHead(AnchorHead):
                          bias_prob=0.01)),
                  **kwargs):
         self.stacked_convs = stacked_convs
+        self.qfl_only = qfl_only
         self.conv_cfg = conv_cfg
         self.norm_cfg = norm_cfg
         self.reg_max = reg_max
@@ -277,11 +279,17 @@ class GFLHead(AnchorHead):
                 avg_factor=1.0)
 
             # dfl loss
-            loss_dfl = self.loss_dfl(
-                pred_corners,
-                target_corners,
-                weight=weight_targets[:, None].expand(-1, 4).reshape(-1),
-                avg_factor=4.0)
+            if self.qfl_only:
+                loss_dfl = bbox_pred.sum() * 0
+                # weight_targets = bbox_pred.new_tensor(0)
+                #loss_dfl不参与优化
+                loss_dfl = loss_dfl.detach()
+            else:
+                loss_dfl = self.loss_dfl(
+                    pred_corners,
+                    target_corners,
+                    weight=weight_targets[:, None].expand(-1, 4).reshape(-1),
+                    avg_factor=4.0)
         else:
             loss_bbox = bbox_pred.sum() * 0
             loss_dfl = bbox_pred.sum() * 0

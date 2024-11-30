@@ -24,7 +24,7 @@ class BboxDistanceMetric(object):
             is_aligned (bool, optional): If True, then m and n must be equal.
                 Default False.
 
-        Returns:
+        Returns:   
             Tensor: shape (m, n) if ``is_aligned `` is False else shape (m,)
         """
         assert bboxes1.size(-1) in [0, 4, 5]
@@ -42,7 +42,14 @@ class BboxDistanceMetric(object):
 
 
 def bbox_overlaps(bboxes1, bboxes2, mode='iou', is_aligned=False, eps=1e-6, weight=2):
-    assert mode in ['iou', 'iof', 'giou', 'wd', 'kl','center_distance2','exp_kl','kl_10'], f'Unsupported mode {mode}'
+    # assert mode in ['iou', 'iof', 'giou', 'wd', 'kl','center_distance2','exp_kl','kl_10'], f'Unsupported mode {mode}'
+    
+
+    assert mode in ['iou', 'iof', 'giou', 'normalized_giou', 'ciou', 'diou', 'nwd', 'siwd',
+                    'dotd','box1_box2','focaliou2', 'focaliou3',
+                    'swdv2', 'center_distance', 'center_distance2', 'kl', 'gwd', 'bcd', 'gjsd'], f'Unsupported mode {mode}'
+    
+    
     # Either the boxes are empty or the length of boxes's last dimenstion is 4
     assert (bboxes1.size(-1) == 4 or bboxes1.size(0) == 0)
     assert (bboxes2.size(-1) == 4 or bboxes2.size(0) == 0)
@@ -102,16 +109,78 @@ def bbox_overlaps(bboxes1, bboxes2, mode='iou', is_aligned=False, eps=1e-6, weig
         return gious
 
 
-    if mode == 'center_distance2':
-        # box1 , box2: x1, y1, x2, y2
+    if mode == 'siwd':
+        # H = img_shape[0]
+        # W = img_shape[1]
+
+        center1 = (bboxes1[..., :, None, :2] + bboxes1[..., :, None, 2:]) / 2
+        center2 = (bboxes2[..., None, :, :2] + bboxes2[..., None, :, 2:]) / 2
+        whs = center1[..., :2] - center2[..., :2]
+        w1 = bboxes1[..., :, None, 2] - bboxes1[..., :, None, 0]
+        h1 = bboxes1[..., :, None, 3] - bboxes1[..., :, None, 1]
+        w2 = bboxes2[..., None, :, 2] - bboxes2[..., None, :, 0]
+        h2 = bboxes2[..., None, :, 3] - bboxes2[..., None, :, 1]
+
+        center_distance = 4*whs[..., 0] * whs[..., 0] / (w1 + w2)**2 + 4*whs[..., 1] * whs[..., 1] / (h1 + h2)**2
+        wh_distance = (w1 - w2) ** 2 / (w1 + w2)**2 + (h1 - h2) ** 2 / (h1 + h2)**2
+        wassersteins = torch.sqrt(center_distance + wh_distance)
+        
+        normalized_wasserstein = torch.exp(-wassersteins*2)
+        return normalized_wasserstein
+
+    if mode == 'nwd':
         center1 = (bboxes1[..., :, None, :2] + bboxes1[..., :, None, 2:]) / 2
         center2 = (bboxes2[..., None, :, :2] + bboxes2[..., None, :, 2:]) / 2
         whs = center1[..., :2] - center2[..., :2]
 
-        center_distance2 = whs[..., 0] * whs[..., 0] + whs[..., 1] * whs[..., 1] + 1e-6 #
+        center_distance = whs[..., 0] * whs[..., 0] + whs[..., 1] * whs[..., 1] + eps #
 
-        #distance = torch.sqrt(center_distance2)
+        w1 = bboxes1[..., :, None, 2] - bboxes1[..., :, None, 0]  + eps
+        h1 = bboxes1[..., :, None, 3] - bboxes1[..., :, None, 1]  + eps
+        w2 = bboxes2[..., None, :, 2] - bboxes2[..., None, :, 0]  + eps
+        h2 = bboxes2[..., None, :, 3] - bboxes2[..., None, :, 1]  + eps
+
+        wh_distance = ((w1 - w2) ** 2 + (h1 - h2) ** 2) / (weight**2)
+
+        wassersteins = torch.sqrt(center_distance + wh_distance)
+        # constant = 11.7
+        normalized_wasserstein = torch.exp(-wassersteins/constant)
+
+        return normalized_wasserstein
+
+
+
+    if mode == 'dotd':
+        center1 = (bboxes1[..., :, None, :2] + bboxes1[..., :, None, 2:]) / 2
+        center2 = (bboxes2[..., None, :, :2] + bboxes2[..., None, :, 2:]) / 2
+        whs = center1[..., :2] - center2[..., :2]
+
+        center_distance = whs[..., 0] * whs[..., 0] + whs[..., 1] * whs[..., 1] + eps #
+
+        distance = torch.sqrt(center_distance)
+
+        dotd = torch.exp(-distance/constant)
+
+        return dotd
+
+    if mode == 'center_distance':
+        center1 = (bboxes1[..., :, None, :2] + bboxes1[..., :, None, 2:]) / 2
+        center2 = (bboxes2[..., None, :, :2] + bboxes2[..., None, :, 2:]) / 2
+        whs = center1[..., :2] - center2[..., :2]
+
+        center_distance2 = whs[..., 0] * whs[..., 0] + whs[..., 1] * whs[..., 1] + eps #
+
+        distance = torch.sqrt(center_distance2)
     
+        return distance
+
+    if mode == 'center_distance2':
+        center1 = (bboxes1[..., :, None, :2] + bboxes1[..., :, None, 2:]) / 2
+        center2 = (bboxes2[..., None, :, :2] + bboxes2[..., None, :, 2:]) / 2
+        whs = center1[..., :2] - center2[..., :2]
+
+        center_distance2 = whs[..., 0] * whs[..., 0] + whs[..., 1] * whs[..., 1] + eps #
+
         return center_distance2
 
    
@@ -181,5 +250,22 @@ def bbox_overlaps(bboxes1, bboxes2, mode='iou', is_aligned=False, eps=1e-6, weig
         wd = 1/(1+wasserstein)
 
         return wd
+    
+    # if mode == 'nwd':#add by czj
+    #     center1 = (bboxes1[..., :, None, :2] + bboxes1[..., :, None, 2:]) / 2
+    #     center2 = (bboxes2[..., None, :, :2] + bboxes2[..., None, :, 2:]) / 2
+    #     whs = center1[..., :2] - center2[..., :2]
+
+    #     center_distance = whs[..., 0] * whs[..., 0] + whs[..., 1] * whs[..., 1] + eps  #
+
+    #     w1 = bboxes1[..., :, None, 2] - bboxes1[..., :, None, 0] + eps
+    #     h1 = bboxes1[..., :, None, 3] - bboxes1[..., :, None, 1] + eps
+    #     w2 = bboxes2[..., None, :, 2] - bboxes2[..., None, :, 0] + eps
+    #     h2 = bboxes2[..., None, :, 3] - bboxes2[..., None, :, 1] + eps
+
+    #     wh_distance = ((w1 - w2) ** 2 + (h1 - h2) ** 2) / 4
+    #     wasserstein = center_distance + wh_distance
+          #
+    #     nwd = 
 
 

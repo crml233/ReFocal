@@ -414,7 +414,7 @@ class VFNetHead(ATSSHead, FCOSHead):
             pos_decoded_bbox_preds_refine,
             pos_decoded_target_preds.detach(),
             is_aligned=True).clamp(min=1e-6)
-        bbox_weights_rf = iou_targets_rf.clone().detach()
+        bbox_weights_rf = iou_targets_rf.clone().detach() 
         bbox_avg_factor_rf = reduce_mean(
             bbox_weights_rf.sum()).clamp_(min=1).item()
 

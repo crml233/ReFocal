@@ -7,6 +7,7 @@ from mmcv.runner import force_fp32
 from mmdet.core import distance2bbox, multi_apply, multiclass_nms, reduce_mean
 from ..builder import HEADS, build_loss
 from .anchor_free_head import AnchorFreeHead
+import json
 
 INF = 1e8
 
@@ -64,6 +65,8 @@ class FCOSHead(AnchorFreeHead):
                  center_sample_radius=1.5,
                  norm_on_bbox=False,
                  centerness_on_reg=False,
+                 output_pred = None,
+                 score_nomul = False,
                  loss_cls=dict(
                      type='FocalLoss',
                      use_sigmoid=True,
@@ -91,6 +94,8 @@ class FCOSHead(AnchorFreeHead):
         self.center_sample_radius = center_sample_radius
         self.norm_on_bbox = norm_on_bbox
         self.centerness_on_reg = centerness_on_reg
+        self.output_pred = output_pred
+        self.score_nomul = score_nomul
         super().__init__(
             num_classes,
             in_channels,
@@ -126,9 +131,9 @@ class FCOSHead(AnchorFreeHead):
                     each is a 4D-tensor, the channel number is num_points * 1.
         """
         return multi_apply(self.forward_single, feats, self.scales,
-                           self.strides)
+                           self.strides)# , show_clsfeat = show_clsfeat)
 
-    def forward_single(self, x, scale, stride):
+    def forward_single(self, x, scale, stride):#, show_clsfeat):
         """Forward features of a single scale level.
 
         Args:
@@ -157,7 +162,12 @@ class FCOSHead(AnchorFreeHead):
                 bbox_pred *= stride
         else:
             bbox_pred = bbox_pred.exp()
-        return cls_score, bbox_pred, centerness
+        
+        show_clsfeat = False
+        if show_clsfeat:
+            return cls_feat
+        else:
+            return cls_score, bbox_pred, centerness #, cls_feat
 
     @force_fp32(apply_to=('cls_scores', 'bbox_preds', 'centernesses'))
     def loss(self,
@@ -219,6 +229,8 @@ class FCOSHead(AnchorFreeHead):
         # repeat points to align with bbox_preds
         flatten_points = torch.cat(
             [points.repeat(num_imgs, 1) for points in all_level_points])
+        all_gt_bboxes = torch.cat(gt_bboxes)
+        num_gts = all_gt_bboxes.size(0)
 
         # FG cat_id: [0, num_classes -1], BG cat_id: num_classes
         bg_class_ind = self.num_classes
@@ -229,6 +241,16 @@ class FCOSHead(AnchorFreeHead):
         num_pos = max(reduce_mean(num_pos), 1.0)
         loss_cls = self.loss_cls(
             flatten_cls_scores, flatten_labels, avg_factor=num_pos)
+        
+        # calculate the pos/neg sample number ratio
+        '''
+        num_neg = flatten_labels.size(0) - num_pos
+        pos_neg_ratio = num_pos/num_neg
+        gt_pos= num_pos/num_gts
+        pos_neg_file = open('/home/xc/mmdet-rfla/configs/aaai/coco_fcos_r50_1x_pn.txt','a+')
+        context = "b_p_num:" + str(num_pos) + "b_n_num:" + str(num_neg) + "b_pn_ratio:"+ str(pos_neg_ratio)+ "num_gt:" + str(num_gts) + "gt_pos:" + str(gt_pos) +'\n'
+        pos_neg_file.writelines(context)
+        '''
 
         pos_bbox_preds = flatten_bbox_preds[pos_inds]
         pos_centerness = flatten_centerness[pos_inds]
@@ -323,6 +345,25 @@ class FCOSHead(AnchorFreeHead):
                                        centerness_pred_list, mlvl_points,
                                        img_shapes, scale_factors, cfg, rescale,
                                        with_nms)
+        
+        #### visualize the detection results
+        # import pdb
+        # print(result_list)
+        # pdb.set_trace()
+        for img_id, _ in enumerate(img_metas):
+            if self.output_pred:
+                for i in range(result_list[0][0].size(0)):                    
+                    pred = {}
+                    pred['image_id'] = img_metas[img_id]['ori_filename']
+                    pred['bbox'] = result_list[0][0][i,:4].cpu().numpy().tolist()
+                    pred['score'] = result_list[0][0][i,4].cpu().numpy().tolist()
+                    pred['category_id'] = result_list[0][1][i].cpu().numpy().tolist()
+                    with open(self.output_pred,'a+') as file: #追加读写
+                        json.dump(pred, file) # each line denotes a predicted item
+                        file.write('\n')    
+        
+        
+        
         return result_list
 
     def _get_bboxes(self,
@@ -392,7 +433,11 @@ class FCOSHead(AnchorFreeHead):
             from mmdet.core.export import get_k_for_topk
             nms_pre = get_k_for_topk(nms_pre_tensor, bbox_pred.shape[1])
             if nms_pre > 0:
-                max_scores, _ = (scores * centerness[..., None]).max(-1)
+                if self.score_nomul:
+                    #score不与centerness相乘
+                    max_scores, _ = scores.max(-1)
+                else:
+                    max_scores, _ = (scores * centerness[..., None]).max(-1)
                 _, topk_inds = max_scores.topk(nms_pre)
                 batch_inds = torch.arange(batch_size).view(
                     -1, 1).expand_as(topk_inds).long()
@@ -431,8 +476,11 @@ class FCOSHead(AnchorFreeHead):
         # Replace multiclass_nms with ONNX::NonMaxSuppression in deployment
         if torch.onnx.is_in_onnx_export() and with_nms:
             from mmdet.core.export import add_dummy_nms_for_onnx
-            batch_mlvl_scores = batch_mlvl_scores * (
-                batch_mlvl_centerness.unsqueeze(2))
+            if self.score_nomul:
+                batch_mlvl_scores = batch_mlvl_scores
+            else:
+                batch_mlvl_scores = batch_mlvl_scores * (
+                    batch_mlvl_centerness.unsqueeze(2))
             max_output_boxes_per_class = cfg.nms.get(
                 'max_output_boxes_per_class', 200)
             iou_threshold = cfg.nms.get('iou_threshold', 0.5)
@@ -453,13 +501,21 @@ class FCOSHead(AnchorFreeHead):
             for (mlvl_bboxes, mlvl_scores,
                  mlvl_centerness) in zip(batch_mlvl_bboxes, batch_mlvl_scores,
                                          batch_mlvl_centerness):
-                det_bbox, det_label = multiclass_nms(
-                    mlvl_bboxes,
-                    mlvl_scores,
-                    cfg.score_thr,
-                    cfg.nms,
-                    cfg.max_per_img,
-                    score_factors=mlvl_centerness)
+                if self.score_nomul:
+                    det_bbox, det_label = multiclass_nms(
+                        mlvl_bboxes,
+                        mlvl_scores,
+                        cfg.score_thr,
+                        cfg.nms,
+                        cfg.max_per_img)
+                else:
+                    det_bbox, det_label = multiclass_nms(
+                        mlvl_bboxes,
+                        mlvl_scores,
+                        cfg.score_thr,
+                        cfg.nms,
+                        cfg.max_per_img,
+                        score_factors=mlvl_centerness)
                 det_results.append(tuple([det_bbox, det_label]))
         else:
             det_results = [
